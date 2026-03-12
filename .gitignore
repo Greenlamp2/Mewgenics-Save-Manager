@@ -32,3 +32,5 @@ desktop.ini
 
 # Screenshots / local assets
 # screenshot.png intentionally tracked for README
+
+*.spec

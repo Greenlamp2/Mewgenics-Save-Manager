@@ -3,6 +3,7 @@ import shutil
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 from datetime import datetime
+import keyboard
 
 
 USER_HOME = os.path.expanduser("~")
@@ -84,7 +85,7 @@ class SaveManagerUI:
 
         self.quick_save_button = tk.Button(
             button_frame,
-            text="Quick Save",
+            text="Quick Save (F7)",
             height=2,
             command=self.create_quick_save
         )
@@ -93,7 +94,7 @@ class SaveManagerUI:
 
         self.quick_load_button = tk.Button(
             button_frame,
-            text="Quick Load",
+            text="Quick Load (F9)",
             height=2,
             command=self.quick_load
         )
@@ -105,6 +106,10 @@ class SaveManagerUI:
         self.listbox.pack(fill="both", expand=True, padx=10)
 
         self.listbox.bind("<Double-Button-1>", lambda e: self.reload_backup())
+
+        # Global hotkeys (work even when the app is not focused)
+        keyboard.add_hotkey("F7", lambda: root.after(0, self.create_quick_save))
+        keyboard.add_hotkey("F9", lambda: root.after(0, lambda: self.quick_load(confirm=False)))
 
         action_frame = tk.Frame(root)
         action_frame.pack(pady=5)
@@ -165,7 +170,7 @@ class SaveManagerUI:
 
             self.listbox.insert(tk.END, display)
 
-    def quick_load(self):
+    def quick_load(self, confirm=True):
 
         if self.listbox.size() == 0:
             messagebox.showinfo("Quick Load", "No backup available")
@@ -181,13 +186,13 @@ class SaveManagerUI:
             messagebox.showerror("Error", "Backup file missing")
             return
 
-        confirm = messagebox.askyesno(
-            "Quick Load",
-            f"Load most recent backup '{name}' ?"
-        )
-
-        if not confirm:
-            return
+        if confirm:
+            answer = messagebox.askyesno(
+                "Quick Load",
+                f"Load most recent backup '{name}' ?"
+            )
+            if not answer:
+                return
 
         create_restore_safety_backup()
 

@@ -41,11 +41,9 @@ TARGET_PATH = os.path.join(WATCH_FOLDER, TARGET_FILE)
 
 CUSTOM_FOLDER = os.path.join(WATCH_FOLDER, "custom")
 
-BACKUP_FOLDER = os.path.join(CUSTOM_FOLDER, "backups")
 SPECIAL_BACKUP_FOLDER = os.path.join(CUSTOM_FOLDER, "named_backups")
 SAFETY_FOLDER = os.path.join(CUSTOM_FOLDER, "restore_safety")
 
-os.makedirs(BACKUP_FOLDER, exist_ok=True)
 os.makedirs(SPECIAL_BACKUP_FOLDER, exist_ok=True)
 os.makedirs(SAFETY_FOLDER, exist_ok=True)
 
@@ -71,37 +69,76 @@ class SaveManagerUI:
         root.geometry("320x400")
         root.attributes("-topmost", True)
 
+
+        button_frame = tk.Frame(root)
+        button_frame.pack(pady=10)
+
         self.save_button = tk.Button(
-            root,
+            button_frame,
             text="Save Backup",
             height=2,
             command=self.create_named_backup
         )
 
-        self.save_button.pack(pady=10)
+        self.save_button.pack(side="left", padx=5)
+
+        self.quick_save_button = tk.Button(
+            button_frame,
+            text="Quick Save",
+            height=2,
+            command=self.create_quick_save
+        )
+
+        self.quick_save_button.pack(side="left", padx=5)
+
+        self.quick_load_button = tk.Button(
+            button_frame,
+            text="Quick Load",
+            height=2,
+            command=self.quick_load
+        )
+
+        self.quick_load_button.pack(side="left", padx=5)
 
         self.listbox = tk.Listbox(root)
 
         self.listbox.pack(fill="both", expand=True, padx=10)
 
+        self.listbox.bind("<Double-Button-1>", lambda e: self.reload_backup())
+
+        action_frame = tk.Frame(root)
+        action_frame.pack(pady=5)
+
         self.reload_button = tk.Button(
-            root,
+            action_frame,
             text="Reload Selected",
             command=self.reload_backup
         )
 
-        self.reload_button.pack(pady=5)
+        self.reload_button.pack(side="left", padx=5)
 
         self.delete_button = tk.Button(
-            root,
-            text="Delete Selected",
-            command=self.delete_backup
+            action_frame,
+            text="Clean Backups (keep 5)",
+            command=self.clean_backups
         )
 
-        self.delete_button.pack(pady=5)
+        self.delete_button.pack(side="left", padx=5)
+
+        self.topmost_var = tk.BooleanVar(value=True)
+        self.topmost_check = tk.Checkbutton(
+            root,
+            text="Always on top",
+            variable=self.topmost_var,
+            command=self.toggle_topmost
+        )
+        self.topmost_check.pack(anchor="w", padx=10, pady=(5, 5))
 
         self.refresh_list()
 
+
+    def toggle_topmost(self):
+        self.root.attributes("-topmost", self.topmost_var.get())
 
     def refresh_list(self):
 
@@ -127,6 +164,50 @@ class SaveManagerUI:
             display = f"{date_str}   {f}"
 
             self.listbox.insert(tk.END, display)
+
+    def quick_load(self):
+
+        if self.listbox.size() == 0:
+            messagebox.showinfo("Quick Load", "No backup available")
+            return
+
+        entry = self.listbox.get(0)
+        name = entry.split("   ", 1)[1]
+
+        folder = os.path.join(SPECIAL_BACKUP_FOLDER, name)
+        backup_file = os.path.join(folder, TARGET_FILE)
+
+        if not os.path.exists(backup_file):
+            messagebox.showerror("Error", "Backup file missing")
+            return
+
+        confirm = messagebox.askyesno(
+            "Quick Load",
+            f"Load most recent backup '{name}' ?"
+        )
+
+        if not confirm:
+            return
+
+        create_restore_safety_backup()
+
+        shutil.copy2(backup_file, TARGET_PATH)
+
+        print(f"⚡ Quick loaded: {name}")
+
+    def create_quick_save(self):
+
+        name = f"quicksave_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+        folder_path = os.path.join(SPECIAL_BACKUP_FOLDER, name)
+
+        os.makedirs(folder_path)
+
+        shutil.copy2(TARGET_PATH, os.path.join(folder_path, TARGET_FILE))
+
+        print(f"⚡ Quick save created: {name}")
+
+        self.refresh_list()
 
     def create_named_backup(self):
 
@@ -189,29 +270,51 @@ class SaveManagerUI:
 
         print(f"🔄 Reloaded backup: {name}")
 
-    def delete_backup(self):
+    def clean_backups(self):
 
-        selection = self.listbox.curselection()
+        folders = [
+            f for f in os.listdir(SPECIAL_BACKUP_FOLDER)
+            if os.path.isdir(os.path.join(SPECIAL_BACKUP_FOLDER, f))
+        ]
 
-        if not selection:
+        folders.sort(
+            key=lambda f: os.path.getctime(os.path.join(SPECIAL_BACKUP_FOLDER, f)),
+            reverse=True
+        )
+
+        to_delete = folders[5:]
+
+        safety_files = [
+            f for f in os.listdir(SAFETY_FOLDER)
+            if os.path.isfile(os.path.join(SAFETY_FOLDER, f))
+        ]
+
+        safety_files.sort(
+            key=lambda f: os.path.getctime(os.path.join(SAFETY_FOLDER, f)),
+            reverse=True
+        )
+
+        safety_to_delete = safety_files[5:]
+
+        if not to_delete and not safety_to_delete:
+            messagebox.showinfo("Clean Backups", "Nothing to delete (5 or fewer backups)")
             return
 
-        entry = self.listbox.get(selection[0])
-        name = entry.split("   ", 1)[1]
-
         confirm = messagebox.askyesno(
-            "Delete",
-            f"Delete backup '{name}' ?"
+            "Clean Backups",
+            f"Delete {len(to_delete)} backup(s) and {len(safety_to_delete)} safety backup(s), keeping the 5 most recent of each ?"
         )
 
         if not confirm:
             return
 
-        folder = os.path.join(SPECIAL_BACKUP_FOLDER, name)
+        for f in to_delete:
+            shutil.rmtree(os.path.join(SPECIAL_BACKUP_FOLDER, f))
+            print(f"🗑 Deleted backup: {f}")
 
-        shutil.rmtree(folder)
-
-        print(f"🗑 Deleted backup: {name}")
+        for f in safety_to_delete:
+            os.remove(os.path.join(SAFETY_FOLDER, f))
+            print(f"🗑 Deleted safety backup: {f}")
 
         self.refresh_list()
 

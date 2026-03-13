@@ -5,7 +5,7 @@ import random
 import threading
 import tkinter as tk
 
-APP_VERSION = "1.0.5"
+APP_VERSION = "1.0.6"
 from tkinter import simpledialog, messagebox
 from datetime import datetime
 import keyboard

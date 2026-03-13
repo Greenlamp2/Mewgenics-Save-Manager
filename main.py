@@ -237,25 +237,29 @@ class SaveManagerUI:
 
         create_restore_safety_backup()
 
-        shutil.copy2(backup_file, TARGET_PATH)
-        if not self.mute_var.get():
-            _play_sound(FX_LOAD)
-
-        print(f"⚡ Quick loaded: {name}")
+        try:
+            shutil.copy2(backup_file, TARGET_PATH)
+            if not self.mute_var.get():
+                _play_sound(FX_LOAD)
+            print(f"⚡ Quick loaded: {name}")
+        except Exception as e:
+            messagebox.showerror("Quick Load Error", str(e))
+            print(f"❌ Quick load failed: {e}")
 
     def create_quick_save(self):
 
         name = f"quicksave_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-
         folder_path = os.path.join(SPECIAL_BACKUP_FOLDER, name)
 
-        os.makedirs(folder_path)
-
-        shutil.copy2(TARGET_PATH, os.path.join(folder_path, TARGET_FILE))
-
-        print(f"⚡ Quick save created: {name}")
-        if not self.mute_var.get():
-            _play_sound(FX_SAVE)
+        try:
+            os.makedirs(folder_path)
+            shutil.copy2(TARGET_PATH, os.path.join(folder_path, TARGET_FILE))
+            print(f"⚡ Quick save created: {name}")
+            if not self.mute_var.get():
+                _play_sound(FX_SAVE)
+        except Exception as e:
+            messagebox.showerror("Quick Save Error", str(e))
+            print(f"❌ Quick save failed: {e}")
 
         self.refresh_list()
 

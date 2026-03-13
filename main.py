@@ -1,11 +1,36 @@
 import os
+import sys
 import shutil
+import threading
 import tkinter as tk
 
-APP_VERSION = "1.0.4"
+APP_VERSION = "1.0.5"
 from tkinter import simpledialog, messagebox
 from datetime import datetime
 import keyboard
+import pygame
+
+# Resolve base path (handles PyInstaller bundling)
+def _base_path():
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+FX_SAVE = os.path.join(_base_path(), "fx", "save.mp3")
+FX_LOAD = os.path.join(_base_path(), "fx", "load.mp3")
+
+# Initialize pygame mixer once at startup
+pygame.mixer.init()
+
+def _play_sound(path):
+    """Play a sound file in a background thread (non-blocking)."""
+    def _run():
+        try:
+            sound = pygame.mixer.Sound(path)
+            sound.play()
+        except Exception as e:
+            print(f"[sound] Error playing {path}: {e}")
+    threading.Thread(target=_run, daemon=True).start()
 
 
 USER_HOME = os.path.expanduser("~")
@@ -144,6 +169,14 @@ class SaveManagerUI:
         )
         self.topmost_check.pack(side="left")
 
+        self.mute_var = tk.BooleanVar(value=False)
+        self.mute_check = tk.Checkbutton(
+            bottom_frame,
+            text="Mute",
+            variable=self.mute_var
+        )
+        self.mute_check.pack(side="left", padx=(10, 0))
+
         self.version_label = tk.Label(bottom_frame, text=f"v{APP_VERSION}", fg="gray", font=("Arial", 8))
         self.version_label.pack(side="right")
 
@@ -205,6 +238,8 @@ class SaveManagerUI:
         create_restore_safety_backup()
 
         shutil.copy2(backup_file, TARGET_PATH)
+        if not self.mute_var.get():
+            _play_sound(FX_LOAD)
 
         print(f"⚡ Quick loaded: {name}")
 
@@ -219,6 +254,8 @@ class SaveManagerUI:
         shutil.copy2(TARGET_PATH, os.path.join(folder_path, TARGET_FILE))
 
         print(f"⚡ Quick save created: {name}")
+        if not self.mute_var.get():
+            _play_sound(FX_SAVE)
 
         self.refresh_list()
 

@@ -2,3 +2,4 @@ watchdog
 keyboard
 pyinstaller
 pynput
+pygame

@@ -1,6 +1,7 @@
 import os
 import sys
 import shutil
+import random
 import threading
 import tkinter as tk
 
@@ -16,8 +17,8 @@ def _base_path():
         return sys._MEIPASS
     return os.path.dirname(os.path.abspath(__file__))
 
-FX_SAVE = os.path.join(_base_path(), "fx", "save.mp3")
-FX_LOAD = os.path.join(_base_path(), "fx", "load.mp3")
+FX_FART_FOLDER = os.path.join(_base_path(), "fx", "fart")
+FX_BURP_FOLDER = os.path.join(_base_path(), "fx", "burp")
 
 # Initialize pygame mixer once at startup
 pygame.mixer.init()
@@ -240,7 +241,13 @@ class SaveManagerUI:
         try:
             shutil.copy2(backup_file, TARGET_PATH)
             if not self.mute_var.get():
-                _play_sound(FX_LOAD)
+                burps = [
+                    os.path.join(FX_BURP_FOLDER, f)
+                    for f in os.listdir(FX_BURP_FOLDER)
+                    if f.lower().endswith(".mp3")
+                ]
+                if burps:
+                    _play_sound(random.choice(burps))
             print(f"⚡ Quick loaded: {name}")
         except Exception as e:
             messagebox.showerror("Quick Load Error", str(e))
@@ -256,7 +263,13 @@ class SaveManagerUI:
             shutil.copy2(TARGET_PATH, os.path.join(folder_path, TARGET_FILE))
             print(f"⚡ Quick save created: {name}")
             if not self.mute_var.get():
-                _play_sound(FX_SAVE)
+                farts = [
+                    os.path.join(FX_FART_FOLDER, f)
+                    for f in os.listdir(FX_FART_FOLDER)
+                    if f.lower().endswith(".mp3")
+                ]
+                if farts:
+                    _play_sound(random.choice(farts))
         except Exception as e:
             messagebox.showerror("Quick Save Error", str(e))
             print(f"❌ Quick save failed: {e}")

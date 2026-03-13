@@ -7,7 +7,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-APP_VERSION = "1.0.6"
+APP_VERSION = "1.0.7"
 from tkinter import simpledialog, messagebox
 from datetime import datetime
 import keyboard

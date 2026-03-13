@@ -1,6 +1,8 @@
 import os
 import shutil
 import tkinter as tk
+
+APP_VERSION = "1.0.4"
 from tkinter import simpledialog, messagebox
 from datetime import datetime
 import keyboard
@@ -130,14 +132,20 @@ class SaveManagerUI:
 
         self.delete_button.pack(side="left", padx=5)
 
+        bottom_frame = tk.Frame(root)
+        bottom_frame.pack(fill="x", padx=10, pady=(5, 5))
+
         self.topmost_var = tk.BooleanVar(value=True)
         self.topmost_check = tk.Checkbutton(
-            root,
+            bottom_frame,
             text="Always on top",
             variable=self.topmost_var,
             command=self.toggle_topmost
         )
-        self.topmost_check.pack(anchor="w", padx=10, pady=(5, 5))
+        self.topmost_check.pack(side="left")
+
+        self.version_label = tk.Label(bottom_frame, text=f"v{APP_VERSION}", fg="gray", font=("Arial", 8))
+        self.version_label.pack(side="right")
 
         self.refresh_list()
 

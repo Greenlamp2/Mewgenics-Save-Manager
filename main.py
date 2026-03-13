@@ -7,7 +7,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-APP_VERSION = "1.0.7"
+APP_VERSION = "1.0.8"
 from tkinter import simpledialog, messagebox
 from datetime import datetime
 import keyboard
@@ -15,12 +15,50 @@ import pygame
 
 # Resolve base path (handles PyInstaller bundling)
 def _base_path():
+    """Return the folder that contains bundled resources (sys._MEIPASS when frozen)."""
     if getattr(sys, "frozen", False):
         return sys._MEIPASS
     return os.path.dirname(os.path.abspath(__file__))
 
+def _user_path():
+    """Return the folder that contains the running EXE (or script when not frozen).
+    Users can place additional MP3s in an 'fx/' sub-folder here."""
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
 FX_FART_FOLDER = os.path.join(_base_path(), "fx", "fart")
 FX_BURP_FOLDER = os.path.join(_base_path(), "fx", "burp")
+
+
+def _get_fart_files() -> list[str]:
+    """Return all fart MP3s from both the bundled folder and the user folder."""
+    seen, files = set(), []
+    for base in dict.fromkeys([_base_path(), _user_path()]):   # preserves order, deduplicates
+        folder = os.path.join(base, "fx", "fart")
+        if os.path.isdir(folder):
+            for f in os.listdir(folder):
+                if f.lower().endswith(".mp3"):
+                    full = os.path.normpath(os.path.join(folder, f))
+                    if full not in seen:
+                        seen.add(full)
+                        files.append(full)
+    return files
+
+
+def _get_burp_files() -> list[str]:
+    """Return all burp MP3s from both the bundled folder and the user folder."""
+    seen, files = set(), []
+    for base in dict.fromkeys([_base_path(), _user_path()]):
+        folder = os.path.join(base, "fx", "burp")
+        if os.path.isdir(folder):
+            for f in os.listdir(folder):
+                if f.lower().endswith(".mp3"):
+                    full = os.path.normpath(os.path.join(folder, f))
+                    if full not in seen:
+                        seen.add(full)
+                        files.append(full)
+    return files
 
 # Initialize pygame mixer once at startup
 pygame.mixer.init()
@@ -176,16 +214,47 @@ def create_restore_safety_backup():
     print(f"🛟 Safety backup created: {safety_name}")
 
 
-def _collect_all_mp3s():
-    """Return a sorted list of absolute paths for every mp3 under fx/."""
-    fx_root = os.path.join(_base_path(), "fx")
-    mp3s = []
-    for dirpath, _, files in os.walk(fx_root):
-        for f in sorted(files):
-            if f.lower().endswith(".mp3"):
-                mp3s.append(os.path.join(dirpath, f))
+def _collect_all_mp3s() -> list[str]:
+    """Return a sorted, deduplicated list of absolute MP3 paths from:
+    - the bundled  fx/ folder (_base_path)
+    - the user     fx/ folder next to the EXE (_user_path)
+    """
+    seen, mp3s = set(), []
+    for base in dict.fromkeys([_base_path(), _user_path()]):
+        fx_root = os.path.join(base, "fx")
+        if not os.path.isdir(fx_root):
+            continue
+        for dirpath, _, files in os.walk(fx_root):
+            for f in sorted(files):
+                if f.lower().endswith(".mp3"):
+                    full = os.path.normpath(os.path.join(dirpath, f))
+                    if full not in seen:
+                        seen.add(full)
+                        mp3s.append(full)
     mp3s.sort()
     return mp3s
+
+
+def _mp3_display_label(path: str) -> str:
+    """Return a human-friendly label for *path*.
+    Bundled files  →  relative path from _base_path()  (e.g. fx/fart/fart1.mp3)
+    User-added files →  [user] relative path from _user_path()
+    """
+    base_p = _base_path()
+    user_p = _user_path()
+    # try to express relative to bundled base
+    try:
+        rel = os.path.relpath(path, base_p)
+        if not rel.startswith(".."):
+            return rel.replace("\\", "/")
+    except ValueError:
+        pass
+    # fall back to user path
+    try:
+        rel = os.path.relpath(path, user_p)
+        return f"[user] {rel.replace(chr(92), '/')}"
+    except ValueError:
+        return os.path.basename(path)
 
 
 # Sentinel values for "random pool" options in Custom mode
@@ -230,11 +299,10 @@ class SoundManagerWindow:
 
         # Build mp3 list
         self.all_mp3s  = _collect_all_mp3s()
-        base           = _base_path()
         self.mp3_labels = (
             ["(none)"]
             + list(_SPECIAL_SOUND_LABELS.values())          # special random-pool entries
-            + [os.path.relpath(p, base) for p in self.all_mp3s]
+            + [_mp3_display_label(p) for p in self.all_mp3s]
         )
         # Number of non-file entries before the actual mp3 paths
         self._mp3_offset = 1 + len(_SPECIAL_SOUND_LABELS)  # "(none)" + specials
@@ -356,10 +424,7 @@ class SoundManagerWindow:
         if label in _SPECIAL_SOUND_VALUES:
             sentinel = _SPECIAL_SOUND_VALUES[label]
             try:
-                if sentinel == RANDOM_FART:
-                    files = [os.path.join(FX_FART_FOLDER, f) for f in os.listdir(FX_FART_FOLDER) if f.lower().endswith(".mp3")]
-                else:
-                    files = [os.path.join(FX_BURP_FOLDER, f) for f in os.listdir(FX_BURP_FOLDER) if f.lower().endswith(".mp3")]
+                files = _get_fart_files() if sentinel == RANDOM_FART else _get_burp_files()
                 if files:
                     _play_sound(random.choice(files), volume=self.volume_var.get() / 100)
             except Exception as e:
@@ -510,19 +575,11 @@ class SaveManagerUI:
 
         if mode == "random":
             if action in ("save_backup", "quick_save"):
-                farts = [
-                    os.path.join(FX_FART_FOLDER, f)
-                    for f in os.listdir(FX_FART_FOLDER)
-                    if f.lower().endswith(".mp3")
-                ]
+                farts = _get_fart_files()
                 if farts:
                     _play_sound(random.choice(farts), volume=volume)
             elif action == "quick_load":
-                burps = [
-                    os.path.join(FX_BURP_FOLDER, f)
-                    for f in os.listdir(FX_BURP_FOLDER)
-                    if f.lower().endswith(".mp3")
-                ]
+                burps = _get_burp_files()
                 if burps:
                     _play_sound(random.choice(burps), volume=volume)
 
@@ -535,19 +592,11 @@ class SaveManagerUI:
         elif mode == "custom":
             path = self.sound_config.get(action)
             if path == RANDOM_FART:
-                farts = [
-                    os.path.join(FX_FART_FOLDER, f)
-                    for f in os.listdir(FX_FART_FOLDER)
-                    if f.lower().endswith(".mp3")
-                ]
+                farts = _get_fart_files()
                 if farts:
                     _play_sound(random.choice(farts), volume=volume)
             elif path == RANDOM_BURP:
-                burps = [
-                    os.path.join(FX_BURP_FOLDER, f)
-                    for f in os.listdir(FX_BURP_FOLDER)
-                    if f.lower().endswith(".mp3")
-                ]
+                burps = _get_burp_files()
                 if burps:
                     _play_sound(random.choice(burps), volume=volume)
             elif path and os.path.exists(path):

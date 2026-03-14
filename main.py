@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPixmap, QPainter
 
-APP_VERSION = "1.0.10"
+APP_VERSION = "1.0.11"
 
 # ---------------------------------------------------------------------------
 # Palette-relative widget styles (adaptés dark & light)
@@ -678,6 +678,10 @@ class SaveManagerUI(QMainWindow):
         self.reload_button.clicked.connect(self.reload_backup)
         action_layout.addWidget(self.reload_button)
 
+        self.rename_button = QPushButton("Rename Selected")
+        self.rename_button.clicked.connect(self.rename_backup)
+        action_layout.addWidget(self.rename_button)
+
         self.clean_button = QPushButton("Clean Backups (keep 5)")
         self.clean_button.clicked.connect(self.clean_backups)
         action_layout.addWidget(self.clean_button)
@@ -922,6 +926,44 @@ class SaveManagerUI(QMainWindow):
         create_restore_safety_backup()
         shutil.copy2(backup_file, TARGET_PATH)
         print(f"🔄 Reloaded backup: {name}")
+
+    def rename_backup(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            QMessageBox.information(self, "Rename", "Select a backup first")
+            return
+
+        entry    = item.text()
+        old_name = entry.split("   ", 1)[1]
+        old_path = os.path.join(SPECIAL_BACKUP_FOLDER, old_name)
+
+        new_name, ok = QInputDialog.getText(
+            self, "Rename Backup", "New name:", text=old_name
+        )
+        if not ok or not new_name.strip():
+            return
+
+        safe_name = new_name.strip().replace(" ", "_")
+        new_path  = os.path.join(SPECIAL_BACKUP_FOLDER, safe_name)
+
+        if safe_name == old_name:
+            return
+
+        if os.path.exists(new_path):
+            QMessageBox.warning(
+                self, "Rename",
+                f"A backup named '{safe_name}' already exists."
+            )
+            return
+
+        try:
+            os.rename(old_path, new_path)
+            print(f"✏️  Renamed '{old_name}' → '{safe_name}'")
+        except Exception as e:
+            QMessageBox.critical(self, "Rename Error", str(e))
+            return
+
+        self.refresh_list()
 
     def clean_backups(self):
         folders = [

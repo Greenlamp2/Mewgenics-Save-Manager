@@ -3,3 +3,4 @@ keyboard
 pyinstaller
 pynput
 pygame
+PySide6

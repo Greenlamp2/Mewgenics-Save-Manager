@@ -19,7 +19,41 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPixmap, QPainter
 
-APP_VERSION = "1.0.9"
+APP_VERSION = "1.0.10"
+
+# ---------------------------------------------------------------------------
+# Palette-relative widget styles (adaptés dark & light)
+# ---------------------------------------------------------------------------
+
+_CHECKBOX_STYLE = """
+    QCheckBox { spacing: 6px; }
+    QCheckBox::indicator {
+        width: 16px; height: 16px;
+        border: 2px solid palette(mid);
+        border-radius: 3px;
+        background: palette(base);
+    }
+    QCheckBox::indicator:hover { border-color: palette(highlight); }
+    QCheckBox::indicator:checked {
+        background: palette(highlight);
+        border-color: palette(highlight);
+    }
+"""
+
+_RADIOBUTTON_STYLE = """
+    QRadioButton { spacing: 6px; }
+    QRadioButton::indicator {
+        width: 14px; height: 14px;
+        border: 2px solid palette(mid);
+        border-radius: 8px;
+        background: palette(base);
+    }
+    QRadioButton::indicator:hover { border-color: palette(highlight); }
+    QRadioButton::indicator:checked {
+        background: palette(highlight);
+        border-color: palette(highlight);
+    }
+"""
 
 # ---------------------------------------------------------------------------
 # Path helpers
@@ -90,6 +124,56 @@ def _play_sound(path, volume: float = 1.0):
 # ---------------------------------------------------------------------------
 # Window helpers
 # ---------------------------------------------------------------------------
+
+def _apply_dark_palette(app: QApplication) -> None:
+    from PySide6.QtGui import QPalette, QColor
+    p = QPalette()
+    dark   = QColor(53, 53, 53)
+    darker = QColor(35, 35, 35)
+    white  = Qt.GlobalColor.white
+    blue   = QColor(42, 130, 218)
+    p.setColor(QPalette.ColorRole.Window,          dark)
+    p.setColor(QPalette.ColorRole.WindowText,      white)
+    p.setColor(QPalette.ColorRole.Base,            darker)
+    p.setColor(QPalette.ColorRole.AlternateBase,   dark)
+    p.setColor(QPalette.ColorRole.ToolTipBase,     QColor(25, 25, 25))
+    p.setColor(QPalette.ColorRole.ToolTipText,     white)
+    p.setColor(QPalette.ColorRole.Text,            white)
+    p.setColor(QPalette.ColorRole.Button,          dark)
+    p.setColor(QPalette.ColorRole.ButtonText,      white)
+    p.setColor(QPalette.ColorRole.BrightText,      Qt.GlobalColor.red)
+    p.setColor(QPalette.ColorRole.Link,            blue)
+    p.setColor(QPalette.ColorRole.Highlight,       blue)
+    p.setColor(QPalette.ColorRole.HighlightedText, darker)
+    app.setPalette(p)
+
+
+def _apply_light_palette(app: QApplication) -> None:
+    from PySide6.QtGui import QPalette, QColor
+    p = QPalette()
+    gray    = QColor(240, 240, 240)   # classic Windows control face
+    white   = QColor(255, 255, 255)
+    dark    = QColor(0,   0,   0)
+    mid     = QColor(160, 160, 160)
+    shadow  = QColor(105, 105, 105)
+    blue    = QColor(0,   120, 215)   # Windows 10 accent
+    p.setColor(QPalette.ColorRole.Window,          gray)
+    p.setColor(QPalette.ColorRole.WindowText,      dark)
+    p.setColor(QPalette.ColorRole.Base,            white)
+    p.setColor(QPalette.ColorRole.AlternateBase,   QColor(233, 231, 227))
+    p.setColor(QPalette.ColorRole.ToolTipBase,     white)
+    p.setColor(QPalette.ColorRole.ToolTipText,     dark)
+    p.setColor(QPalette.ColorRole.Text,            dark)
+    p.setColor(QPalette.ColorRole.Button,          gray)
+    p.setColor(QPalette.ColorRole.ButtonText,      dark)
+    p.setColor(QPalette.ColorRole.BrightText,      QColor(255, 0, 0))
+    p.setColor(QPalette.ColorRole.Link,            blue)
+    p.setColor(QPalette.ColorRole.Highlight,       blue)
+    p.setColor(QPalette.ColorRole.HighlightedText, white)
+    p.setColor(QPalette.ColorRole.Mid,             mid)
+    p.setColor(QPalette.ColorRole.Shadow,          shadow)
+    app.setPalette(p)
+
 
 def _center_window(win: QWidget, width: int, height: int):
     screen = QApplication.primaryScreen().availableGeometry()
@@ -219,6 +303,31 @@ def _save_window_config(key: str, x: int, y: int) -> None:
         print(f"[config] Failed to save window config: {e}")
 
 
+def _load_theme() -> str:
+    """Return 'dark' (default) or 'light'."""
+    try:
+        if os.path.exists(WINDOW_CONFIG_PATH):
+            with open(WINDOW_CONFIG_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data.get("theme", "dark")
+    except Exception:
+        pass
+    return "dark"
+
+
+def _save_theme(theme: str) -> None:
+    try:
+        data: dict = {}
+        if os.path.exists(WINDOW_CONFIG_PATH):
+            with open(WINDOW_CONFIG_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        data["theme"] = theme
+        with open(WINDOW_CONFIG_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(f"[config] Failed to save theme: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Safety backup
 # ---------------------------------------------------------------------------
@@ -331,21 +440,7 @@ class SoundManagerDialog(QDialog):
         mode_layout = QVBoxLayout(mode_group)
         self.mode_btn_group = QButtonGroup(self)
 
-        rb_style = """
-            QRadioButton { color: palette(text); spacing: 6px; }
-            QRadioButton::indicator {
-                width: 14px;
-                height: 14px;
-                border: 2px solid #888;
-                border-radius: 8px;
-                background: #2b2b2b;
-            }
-            QRadioButton::indicator:hover { border-color: #aaa; }
-            QRadioButton::indicator:checked {
-                background: #4a9eff;
-                border-color: #4a9eff;
-            }
-        """
+        rb_style = _RADIOBUTTON_STYLE
 
         for value, text in [
             ("random",  "🎲  Random  (fart on save actions · burp on load)"),
@@ -422,21 +517,7 @@ class SoundManagerDialog(QDialog):
 
         self.mute_check = QCheckBox("Mute")
         self.mute_check.setChecked(sound_config.get("mute", False))
-        self.mute_check.setStyleSheet("""
-            QCheckBox { color: palette(text); spacing: 6px; }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #888;
-                border-radius: 3px;
-                background: #2b2b2b;
-            }
-            QCheckBox::indicator:hover { border-color: #aaa; }
-            QCheckBox::indicator:checked {
-                background: #4a9eff;
-                border-color: #4a9eff;
-            }
-        """)
+        self.mute_check.setStyleSheet(_CHECKBOX_STYLE)
         vol_layout.addWidget(self.mute_check)
 
         layout.addWidget(vol_group)
@@ -615,24 +696,31 @@ class SaveManagerUI(QMainWindow):
         self.topmost_check = QCheckBox("Always on top")
         self.topmost_check.setChecked(True)
         self.topmost_check.stateChanged.connect(self._on_topmost_changed)
-        self.topmost_check.setStyleSheet("""
-            QCheckBox { color: palette(text); spacing: 6px; }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #888;
-                border-radius: 3px;
-                background: #2b2b2b;
-            }
-            QCheckBox::indicator:hover { border-color: #aaa; }
-            QCheckBox::indicator:checked {
-                background: #4a9eff;
-                border-color: #4a9eff;
-            }
-        """)
+        self.topmost_check.setStyleSheet(_CHECKBOX_STYLE)
         bottom_layout.addWidget(self.topmost_check)
 
         bottom_layout.addStretch()
+
+        # Moon / Sun theme toggle
+        moon_lbl = QLabel("🌙")
+        moon_lbl.setToolTip("Thème sombre")
+        moon_lbl.setStyleSheet("font-size: 13px;")
+        bottom_layout.addWidget(moon_lbl)
+
+        self.theme_slider = QSlider(Qt.Orientation.Horizontal)
+        self.theme_slider.setRange(0, 1)
+        self.theme_slider.setFixedWidth(38)
+        self.theme_slider.setToolTip("Thème sombre / clair")
+        self.theme_slider.setValue(0 if _load_theme() == "dark" else 1)
+        self.theme_slider.valueChanged.connect(self._on_theme_changed)
+        bottom_layout.addWidget(self.theme_slider)
+
+        sun_lbl = QLabel("☀️")
+        sun_lbl.setToolTip("Thème clair")
+        sun_lbl.setStyleSheet("font-size: 13px;")
+        bottom_layout.addWidget(sun_lbl)
+
+        bottom_layout.addSpacing(10)
 
         version_label = QLabel(f"v{APP_VERSION}")
         version_label.setStyleSheet("color: gray; font-size: 9px;")
@@ -662,6 +750,18 @@ class SaveManagerUI(QMainWindow):
         topmost = state == Qt.CheckState.Checked.value
         self.setWindowFlag(Qt.WindowStaysOnTopHint, topmost)
         self.show()   # required to apply flag change
+
+    def _on_theme_changed(self, value: int):
+        theme = "light" if value == 1 else "dark"
+        _save_theme(theme)
+        app = QApplication.instance()
+        if theme == "dark":
+            _apply_dark_palette(app)
+        else:
+            _apply_light_palette(app)
+        # Force re-evaluation of palette() references in stylesheets
+        self.topmost_check.setStyleSheet("")
+        self.topmost_check.setStyleSheet(_CHECKBOX_STYLE)
 
     # ------------------------------------------------------------------
 
@@ -877,5 +977,9 @@ class SaveManagerUI(QMainWindow):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
+    if _load_theme() == "light":
+        _apply_light_palette(app)
+    else:
+        _apply_dark_palette(app)
     ui = SaveManagerUI()
     sys.exit(app.exec())

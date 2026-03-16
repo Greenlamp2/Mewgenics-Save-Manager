@@ -1,84 +1,86 @@
 # 💩 Mewgenics Save Manager
 
-Un gestionnaire de sauvegardes pour le jeu **Mewgenics** (Glaiel Games).  
-Il détecte automatiquement votre fichier de sauvegarde Steam et vous permet de créer, charger, renommer et nettoyer vos backups en un clic — ou même depuis le jeu grâce aux raccourcis clavier globaux.
+A save file manager for the game **Mewgenics** (Glaiel Games).  
+It automatically detects your Steam save file and lets you create, load, rename, and clean up backups in one click — or even from within the game using global keyboard shortcuts.
+
 ---
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-### 💾 Gestion des sauvegardes
-- **Save Backup** : crée une sauvegarde nommée manuellement (nom personnalisé).
-- **Quick Save (F7)** : crée instantanément une sauvegarde horodatée nommée `quicksave_YYYYMMDD_HHMMSS`.
-- **Quick Load (F9)** : charge la sauvegarde la plus récente de la liste.
-- **Reload Selected** : charge la sauvegarde sélectionnée dans la liste (avec confirmation).
-- **Rename Selected** : renomme une sauvegarde existante.
-- **Double-clic** sur une sauvegarde : équivalent au bouton *Reload Selected*.
-- **Clean Backups (keep 5)** : supprime toutes les sauvegardes sauf les 5 plus récentes, y compris les sauvegardes de sécurité.
-- **Safety backup** : avant tout rechargement, une copie de sécurité automatique est créée dans le dossier `restore_safety/`.
+### 💾 Save Management
+- **Save Backup**: manually creates a named backup (custom name).
+- **Quick Save (F7)**: instantly creates a timestamped backup named `quicksave_YYYYMMDD_HHMMSS`.
+- **Quick Load (F9)**: loads the most recent backup in the list.
+- **Reload Selected**: loads the selected backup from the list (with confirmation).
+- **Rename Selected**: renames an existing backup.
+- **Double-click** on a backup: equivalent to clicking *Reload Selected*.
+- **Clean Backups (keep 5)**: deletes all backups except the 5 most recent ones, including safety backups.
+- **Safety backup**: before any reload, an automatic safety copy is created in the `restore_safety/` folder.
 
-### ⌨️ Raccourcis clavier globaux
-- **F7** : Quick Save — fonctionne même quand l'application n'est pas au premier plan (ex. : pendant une partie).
-- **F9** : Quick Load — idem, sans fenêtre de confirmation.
+### ⌨️ Global Keyboard Shortcuts
+- **F7**: Quick Save — works even when the application is not in focus (e.g. while playing).
+- **F9**: Quick Load — same, with no confirmation dialog.
 
-### 🔊 Gestionnaire de sons (Sound Manager)
-- **Mode Aléatoire** : joue un pet aléatoire (`fx/fart/`) lors des sauvegardes, un rot aléatoire (`fx/burp/`) lors des chargements.
-- **Mode Classique** : joue `fx/save.mp3` et `fx/load.mp3`.
-- **Mode Personnalisé** : assigne un son précis à chaque action (*Save Backup*, *Quick Save*, *Quick Load*), avec possibilité de choisir « Tous les farts (aléatoire) » ou « Tous les burps (aléatoire) ».
-- **Prévisualisation** : bouton ▶ pour tester un son directement dans le Sound Manager.
-- **Volume global** : slider de 0 à 100 %.
-- **Mute** : coupe tous les sons en un clic.
-- Les sons ne sont joués **qu'en cas de succès** de l'opération.
+### 🔊 Sound Manager
+- **Random Mode**: plays a random fart sound (`fx/fart/`) on save, and a random burp (`fx/burp/`) on load.
+- **Classic Mode**: plays `fx/save.mp3` and `fx/load.mp3`.
+- **Custom Mode**: assigns a specific sound to each action (*Save Backup*, *Quick Save*, *Quick Load*), with the option to select "All Farts (random)" or "All Burps (random)".
+- **Preview**: ▶ button to test a sound directly in the Sound Manager.
+- **Global Volume**: slider from 0 to 100%.
+- **Mute**: silences all sounds in one click.
+- Sounds are only played **on success** of the operation.
 
-### 🎵 Sons personnalisables
-- Les MP3 embarqués sont dans `fx/fart/`, `fx/burp/`, `fx/save.mp3`, `fx/load.mp3`.
-- Placez vos propres MP3 dans un dossier `fx/` à côté de l'exécutable pour les ajouter à la liste.
-- La configuration des sons est sauvegardée et restaurée au prochain lancement.
+### 🎵 Custom Sounds
+- Built-in sounds are located in `fx/fart/`, `fx/burp/`, `fx/save.mp3`, `fx/load.mp3`.
+- Place your own MP3 files in an `fx/` folder next to the executable to add them to the list.
+- Sound configuration is saved and restored on next launch.
 
-### 🎨 Thèmes
-- **Thème sombre** (défaut) et **thème clair** (style Windows classique).
-- Bascule via un slider 🌙 / ☀️ dans le bas de la fenêtre.
-- Le choix de thème est mémorisé entre les sessions.
+### 🎨 Themes
+- **Dark theme** (default) and **light theme** (classic Windows style).
+- Toggle via a 🌙 / ☀️ slider at the bottom of the window.
+- Theme choice is remembered between sessions.
 
 ### 🪟 Interface
-- **Always on Top** : checkbox pour garder la fenêtre toujours au premier plan.
-- **Position des fenêtres mémorisée** : la position de la fenêtre principale et du Sound Manager est sauvegardée.
-- **Centrage automatique** au premier lancement.
-- Icône personnalisée 💩 dans la barre de titre et le gestionnaire de tâches.
+- **Always on Top**: checkbox to keep the window always in the foreground.
+- **Window position remembered**: the position of the main window and the Sound Manager is saved.
+- **Auto-centered** on first launch.
+- Custom 💩 icon in the title bar and taskbar.
 
 ---
 
-## 📁 Structure des sauvegardes
+## 📁 Save File Structure
 
-Les sauvegardes sont stockées dans :
+Backups are stored in:
 ```
 %APPDATA%\Glaiel Games\Mewgenics\<SteamID>\saves\custom\
-    named_backups\   ← vos sauvegardes (nommées et quick saves)
-    restore_safety\  ← sauvegardes de sécurité automatiques
+    named_backups\   ← your backups (named and quick saves)
+    restore_safety\  ← automatic safety backups
     sound_config.json
     window_config.json
 ```
 
-Le fichier surveillé est :
+The monitored save file is:
 ```
 %APPDATA%\Glaiel Games\Mewgenics\<SteamID>\saves\steamcampaign01.sav
 ```
 
 ---
 
-## 🚀 Installation (depuis les sources)
+## 🚀 Installation (from source)
 
-**Prérequis :** Python 3.13+
+**Requirements:** Python 3.13+
 
 ```bash
 pip install -r requirements.txt
 python main.py
 ```
+
 ---
 
-## 🎮 Utilisation rapide
+## 🎮 Quick Start
 
-1. Lancez l'application (ou l'EXE).
-2. Votre sauvegarde est détectée automatiquement.
-3. Utilisez **F7** depuis le jeu pour créer un Quick Save.
-4. Utilisez **F9** depuis le jeu pour charger le dernier Quick Save.
-5. Gérez vos sauvegardes depuis l'interface : rename, reload, clean…
+1. Launch the app (or the EXE).
+2. Your save file is detected automatically.
+3. Press **F7** from within the game to create a Quick Save.
+4. Press **F9** from within the game to load the latest Quick Save.
+5. Manage your backups from the UI: rename, reload, clean…

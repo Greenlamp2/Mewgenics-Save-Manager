@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QListWidget, QCheckBox, QSlider,
     QGroupBox, QRadioButton, QButtonGroup, QComboBox,
-    QMessageBox, QInputDialog, QSizePolicy,
+    QMessageBox, QInputDialog, QSizePolicy, QFileDialog,
 )
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPixmap, QPainter
@@ -682,6 +682,10 @@ class SaveManagerUI(QMainWindow):
         self.rename_button.clicked.connect(self.rename_backup)
         action_layout.addWidget(self.rename_button)
 
+        self.export_button = QPushButton("Export Selected")
+        self.export_button.clicked.connect(self.export_backup)
+        action_layout.addWidget(self.export_button)
+
         self.clean_button = QPushButton("Clean Backups (keep 5)")
         self.clean_button.clicked.connect(self.clean_backups)
         action_layout.addWidget(self.clean_button)
@@ -964,6 +968,39 @@ class SaveManagerUI(QMainWindow):
             return
 
         self.refresh_list()
+
+    def export_backup(self):
+        item = self.list_widget.currentItem()
+        if not item:
+            QMessageBox.information(self, "Export", "Select a backup first")
+            return
+
+        entry = item.text()
+        name  = entry.split("   ", 1)[1]
+
+        folder      = os.path.join(SPECIAL_BACKUP_FOLDER, name)
+        backup_file = os.path.join(folder, TARGET_FILE)
+
+        if not os.path.exists(backup_file):
+            QMessageBox.critical(self, "Error", "Backup file missing")
+            return
+
+        dest, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Backup",
+            os.path.join(os.path.expanduser("~"), TARGET_FILE),
+            "Save files (*.sav);;All files (*.*)",
+        )
+        if not dest:
+            return
+
+        try:
+            shutil.copy2(backup_file, dest)
+            QMessageBox.information(self, "Export", f"Backup exported to:\n{dest}")
+            print(f"📤 Exported '{name}' → {dest}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", str(e))
+            print(f"❌ Export failed: {e}")
 
     def clean_backups(self):
         folders = [
